@@ -189,7 +189,7 @@ impl Settings {
             max_completion_tokens,
             default_role,
             default_system_prompt,
-            api_hostname
+            api_hostname,
         })
     }
 }

@@ -42,7 +42,11 @@ impl OpenAIPayload {
         endpoint
     }
 
-    pub(crate) fn send(&self, hostname: Option<String>, api_key: String) -> Result<Response, anyhow::Error> {
+    pub(crate) fn send(
+        &self,
+        hostname: Option<String>,
+        api_key: String,
+    ) -> Result<Response, anyhow::Error> {
         let client = waki::Client::new();
         let response = client
             .post(&self.generate_endpoint(hostname))
@@ -180,35 +184,22 @@ mod tests {
 
     #[test]
     fn test_generate_endpoint_with_default_hostname() {
-        let payload = OpenAIPayload::new(
-            "gpt-3.5-turbo".to_string(),
-            vec![],
-            None,
-        );
+        let payload = OpenAIPayload::new("gpt-3.5-turbo".to_string(), vec![], None);
         let endpoint = payload.generate_endpoint(None);
         assert_eq!(endpoint, "https://api.openai.com/v1/chat/completions");
     }
 
     #[test]
     fn test_generate_endpoint_with_custom_hostname() {
-        let payload = OpenAIPayload::new(
-            "gpt-3.5-turbo".to_string(),
-            vec![],
-            None,
-        );
+        let payload = OpenAIPayload::new("gpt-3.5-turbo".to_string(), vec![], None);
         let endpoint = payload.generate_endpoint(Some("custom.example.com".to_string()));
         assert_eq!(endpoint, "https://custom.example.com/v1/chat/completions");
     }
 
     #[test]
     fn test_generate_endpoint_with_https_in_hostname() {
-        let payload = OpenAIPayload::new(
-            "gpt-3.5-turbo".to_string(),
-            vec![],
-            None,
-        );
+        let payload = OpenAIPayload::new("gpt-3.5-turbo".to_string(), vec![], None);
         let endpoint = payload.generate_endpoint(Some("https://another.example.com".to_string()));
         assert_eq!(endpoint, "https://another.example.com/v1/chat/completions");
     }
-
 }
