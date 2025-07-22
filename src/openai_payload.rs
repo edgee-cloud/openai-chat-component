@@ -120,7 +120,8 @@ mod tests {
             "choices": [
                 { "message": { "role": "assistant", "content": "Hi there!" } }
             ]
-        }"#.to_string();
+        }"#
+        .to_string();
         let resp = OpenAIResponse::from_json_string(json).unwrap();
         assert_eq!(resp.choices.len(), 1);
         assert_eq!(resp.choices[0].message.role, "assistant");
@@ -144,14 +145,12 @@ mod tests {
     #[test]
     fn test_openai_response_to_response_with_choice() {
         let response = OpenAIResponse {
-            choices: vec![
-                OpenAIChoice {
-                    message: Message {
-                        role: "assistant".to_string(),
-                        content: "Hello from OpenAI!".to_string(),
-                    },
+            choices: vec![OpenAIChoice {
+                message: Message {
+                    role: "assistant".to_string(),
+                    content: "Hello from OpenAI!".to_string(),
                 },
-            ],
+            }],
         };
         let result = response.first_choice_to_json();
         // Should be a JSON string containing the message
@@ -165,5 +164,4 @@ mod tests {
         let result = response.first_choice_to_json();
         assert_eq!(result, "No response from OpenAI");
     }
-
 }

@@ -108,7 +108,6 @@ impl Guest for Component {
         let response_body =
             String::from_utf8_lossy(&openai_response.body().unwrap_or_default()).to_string();
 
-
         let openai_response = match OpenAIResponse::from_json_string(response_body) {
             Ok(response) => response,
             Err(e) => {
