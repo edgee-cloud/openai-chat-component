@@ -16,7 +16,7 @@
 [![Edgee Component Registry](https://img.shields.io/badge/Edgee_Component_Registry-Public-green.svg)](https://www.edgee.cloud/edgee/openai-chat)
 
 
-This component provides a simple way to integrate the OpenAI Chat API on [Edgee](https://www.edgee.cloud),
+This component provides a simple way to integrate the OpenAI Chat API (or other OpenAI-compatible APIs) on [Edgee](https://www.edgee.cloud),
 served directly at the edge. You map the component to a specific endpoint such as `/openai`, and
 then you invoke it from your frontend code.
 
