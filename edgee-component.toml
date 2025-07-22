@@ -11,6 +11,7 @@ documentation = "https://github.com/edgee-cloud/openai-chat-component"
 repository = "https://github.com/edgee-cloud/openai-chat-component"
 language = "Rust"
 wit-version = "1.0.0"
+icon-path = "openai.png"
 
 [component.build]
 command = "cargo build --target wasm32-wasip2 --release --target-dir ./target && rm -f ./component.wasm && mv ./target/wasm32-wasip2/release/openai_chat_component.wasm ./openai.wasm"
