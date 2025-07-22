@@ -45,3 +45,8 @@ description = "The default role to use for messages. By default it's 'user'."
 title = "Default System Prompt (Optional)"
 type = "string"
 description = "The default system prompt to use for messages. By default it's 'You are a helpful assistant.'"
+
+[component.settings.api_hostname]
+title = "API Hostname (Optional)"
+type = "string"
+description = "The API hostname to use for requests. By default it's 'api.openai.com'. If you are using a different OpenAI-compatible API, you can specify it here."

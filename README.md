@@ -34,8 +34,11 @@ file = "/var/edgee/components/openai.wasm"
 settings.edgee_path = "/openai"
 settings.api_key = "sk-XYZ"
 settings.model = "gpt-3.5-turbo"
+
+# optional settings:
 settings.max_completion_tokens = "100" # optional, by default it's unlimited
-settings.default_system_prompt="You are a very helpful and funny assistant, always adding a quick joke after your response."
+settings.default_system_prompt="You are a funny assistant, always adding a short joke after your response." # optional, no automatic system prompt by default
+settings.api_hostname = "api.openai.com" # optional, in case you're using a different OpenAI-compatible API
 ```
 
 ### How to use the HTTP endpoint

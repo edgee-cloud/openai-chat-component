@@ -93,7 +93,7 @@ impl Guest for Component {
         let openai_payload =
             OpenAIPayload::new(settings.model, messages, settings.max_completion_tokens);
 
-        let openai_response = openai_payload.send(settings.api_key);
+        let openai_response = openai_payload.send(settings.api_hostname, settings.api_key);
 
         // handle error in case request couldn't be sent
         if let Err(e) = openai_response {
@@ -134,6 +134,7 @@ pub struct Settings {
     pub max_completion_tokens: Option<u32>,
     pub default_role: String,
     pub default_system_prompt: Option<String>,
+    pub api_hostname: Option<String>,
 }
 
 impl Settings {
@@ -177,12 +178,18 @@ impl Settings {
 
         let default_system_prompt: Option<String> = setting.get("default_system_prompt").cloned();
 
+        let api_hostname: Option<String> = setting
+            .get("api_hostname")
+            .cloned()
+            .filter(|s| !s.is_empty());
+
         Ok(Self {
             api_key,
             model,
             max_completion_tokens,
             default_role,
             default_system_prompt,
+            api_hostname
         })
     }
 }
