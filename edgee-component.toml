@@ -1,0 +1,46 @@
+manifest-version = 1
+
+[component]
+name = "OpenAI Chat"
+version = "1.0.0"
+
+category = "edge-function"
+subcategory = "wasm-function"
+description = "OpenAI Chat component for edge functions, allowing you to interact with OpenAI's API."
+documentation = "https://github.com/edgee-cloud/openai-chat-component"
+repository = "https://github.com/edgee-cloud/openai-chat-component"
+language = "Rust"
+wit-version = "1.0.0"
+
+[component.build]
+command = "cargo build --target wasm32-wasip2 --release --target-dir ./target && rm -f ./component.wasm && mv ./target/wasm32-wasip2/release/openai_chat_component.wasm ./openai.wasm"
+output_path = "openai.wasm"
+
+[component.settings.api_key]
+title = "API Key"
+type = "string"
+secret = true
+required = true
+description = "Your OpenAI API key for authentication"
+
+[component.settings.model]
+title = "Model"
+type = "string"
+required = true
+description = "The model to use for the API call, like gpt-3.5-turbo"
+
+[component.settings.max_completion_tokens]
+title = "Max Completion Tokens (Optional)"
+type = "number"
+description = "The maximum number of tokens to generate in the completion. By default it's unlimited."
+
+[component.settings.default_role]
+title = "Default Role (Optional)"
+type = "string"
+description = "The default role to use for messages. By default it's 'user'."
+
+
+[component.settings.default_system_prompt]
+title = "Default System Prompt (Optional)"
+type = "string"
+description = "The default system prompt to use for messages. By default it's 'You are a helpful assistant.'"
