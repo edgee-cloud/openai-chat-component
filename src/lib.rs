@@ -131,7 +131,7 @@ impl Guest for Component {
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct Settings {
     pub api_key: String,
-    pub model: String, // TODO make this optional and use a default model? or from request body?
+    pub model: String,
     pub max_completion_tokens: Option<u32>,
     pub default_role: String,
     pub default_system_prompt: Option<String>,
