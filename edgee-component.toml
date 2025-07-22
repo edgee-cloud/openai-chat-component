@@ -14,7 +14,7 @@ wit-version = "1.0.0"
 icon-path = "openai.png"
 
 [component.build]
-command = "cargo build --target wasm32-wasip2 --release --target-dir ./target && rm -f ./component.wasm && mv ./target/wasm32-wasip2/release/openai_chat_component.wasm ./openai.wasm"
+command = "cargo build --target wasm32-wasip2 --release --target-dir ./target && rm -f ./openai.wasm && mv ./target/wasm32-wasip2/release/openai_chat_component.wasm ./openai.wasm"
 output_path = "openai.wasm"
 
 [component.settings.api_key]
