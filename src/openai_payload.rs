@@ -68,6 +68,10 @@ pub(crate) struct OpenAIResponse {
     pub(crate) choices: Vec<OpenAIChoice>,
 }
 
+/*
+ * This struct is used to deserialize the OpenAI response
+ * and only return back the first choice's message (ignoring all other response fields for now).
+ */
 impl OpenAIResponse {
     pub(crate) fn from_json_string(response_body: String) -> Result<Self, anyhow::Error> {
         // deserialize the body into OpenAIResponse struct

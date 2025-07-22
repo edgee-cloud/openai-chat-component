@@ -108,7 +108,7 @@ impl Guest for Component {
         let response_body =
             String::from_utf8_lossy(&openai_response.body().unwrap_or_default()).to_string();
 
-        let openai_response = match OpenAIResponse::from_json_string(response_body) {
+        let function_response = match OpenAIResponse::from_json_string(response_body) {
             Ok(response) => response,
             Err(e) => {
                 let response = helpers::build_response_json_error(
@@ -120,9 +120,10 @@ impl Guest for Component {
             }
         };
 
-        let response_body = openai_response.first_choice_to_json();
-
-        let response = helpers::build_response_json(&response_body, response_status);
+        let response = helpers::build_response_json(
+            &function_response.first_choice_to_json(),
+            response_status,
+        );
         response.send(resp);
     }
 }
