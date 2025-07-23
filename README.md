@@ -17,7 +17,7 @@
 
 
 This component provides a simple way to integrate the OpenAI Chat API (or other OpenAI-compatible APIs) on [Edgee](https://www.edgee.cloud),
-served directly at the edge. You map the component to a specific endpoint such as `/openai`, and
+served directly at the edge. You map the component to a specific endpoint such as `/chat`, and
 then you invoke it from your frontend code.
 
 
@@ -31,7 +31,7 @@ then you invoke it from your frontend code.
 [[components.edge_functions]]
 id = "openai"
 file = "/var/edgee/components/openai.wasm"
-settings.edgee_path = "/openai"
+settings.edgee_path = "/chat"
 settings.api_key = "sk-XYZ"
 settings.model = "gpt-3.5-turbo"
 
@@ -46,7 +46,7 @@ settings.api_hostname = "api.openai.com" # optional, in case you're using a diff
 You can send requests to the endpoint and show the response message as follows:
 
 ```javascript
-const response = await fetch('/openai', {
+const response = await fetch('/chat', {
   method: 'POST',
   body: JSON.stringify({
     messages: [{
