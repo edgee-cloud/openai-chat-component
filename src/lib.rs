@@ -1,52 +1,40 @@
-mod helpers;
 mod openai_payload;
-mod world;
 
-use openai_payload::{Message, OpenAIPayload, OpenAIResponse};
 use std::collections::HashMap;
 
-use world::bindings::exports::wasi::http::incoming_handler::Guest;
-use world::bindings::wasi::http::types::IncomingRequest;
-use world::bindings::wasi::http::types::ResponseOutparam;
-use world::bindings::Component;
+use bindings::wasi::http::types::{IncomingRequest, ResponseOutparam};
+use openai_payload::{OpenAIPayload, OpenAIResponse, Message};
 
-impl Guest for Component {
+mod bindings {
+    wit_bindgen::generate!({
+        path: ".edgee/wit",
+        world: "edge-function",
+        generate_all,
+        pub_export_macro: true,
+        default_bindings_module: "$crate::bindings",
+    });
+}
+mod helpers;
+
+struct Component;
+bindings::export!(Component);
+
+impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
     fn handle(req: IncomingRequest, resp: ResponseOutparam) {
-        let settings = match Settings::from_req(&req) {
-            Ok(settings) => settings,
-            Err(e) => {
-                let response = helpers::build_response_json_error(
-                    &format!("Failed to parse component settings: {e}"),
-                    500,
-                );
-                response.send(resp);
-                return;
-            }
-        };
+        helpers::run_json(req, resp, Self::handle_json_request);
+    }
+}
 
-        // read request body
-        let request_body = match helpers::parse_body(req) {
-            Ok(body) => body,
-            Err(e) => {
-                let response = helpers::build_response_json_error(&e, 400);
-                response.send(resp);
-                return;
-            }
-        };
+impl Component {
+    fn handle_json_request(
+        req: http::Request<serde_json::Value>,
+    ) -> Result<http::Response<serde_json::Value>, anyhow::Error> {
+        let settings = Settings::from_req(&req)?;
 
-        // parse body to JSON
-        let body_json: serde_json::Value = match serde_json::from_slice(&request_body) {
-            Ok(json) => json,
-            Err(_) => {
-                let response =
-                    helpers::build_response_json_error("Invalid JSON in request body", 400);
-                response.send(resp);
-                return;
-            }
-        };
+        let request_body = req.body();
 
         // extract messages from request body
-        let mut messages: Vec<Message> = match body_json.get("messages") {
+        let mut messages: Vec<Message> = match request_body.get("messages") {
             Some(value) => value
                 .as_array()
                 .unwrap_or(&Vec::new())
@@ -65,14 +53,7 @@ impl Guest for Component {
                     Message { role, content }
                 })
                 .collect::<Vec<Message>>(),
-            None => {
-                let response = helpers::build_response_json_error(
-                    "Missing 'messages' field in request body",
-                    400,
-                );
-                response.send(resp);
-                return;
-            }
+            None => return Err(anyhow::anyhow!("Missing 'messages' field in request body")),
         };
 
         // use system prompt if provided (or default)
@@ -93,38 +74,21 @@ impl Guest for Component {
         let openai_payload =
             OpenAIPayload::new(settings.model, messages, settings.max_completion_tokens);
 
-        let openai_response = openai_payload.send(settings.api_hostname, settings.api_key);
+        let openai_response = openai_payload.send(settings.api_hostname, settings.api_key).expect("Failed to send OpenAI request");
 
-        // handle error in case request couldn't be sent
-        if let Err(e) = openai_response {
-            let response = helpers::build_response_json_error(&e.to_string(), 500);
-            response.send(resp);
-            return;
-        }
-
-        let openai_response = openai_response.unwrap();
         let response_status = openai_response.status_code();
-
         let response_body =
-            String::from_utf8_lossy(&openai_response.body().unwrap_or_default()).to_string();
+            String::from_utf8_lossy(&openai_response.body()?).to_string();
 
-        let function_response = match OpenAIResponse::from_json_string(response_body) {
+        let component_response = match OpenAIResponse::from_json_string(response_body) {
             Ok(response) => response,
-            Err(e) => {
-                let response = helpers::build_response_json_error(
-                    &format!("Could not parse OpenAI response: {e}"),
-                    500,
-                );
-                response.send(resp);
-                return;
-            }
+            Err(e) => return Err(anyhow::anyhow!("Could not parse OpenAI response: {e}")),
         };
 
-        let response = helpers::build_response_json(
-            &function_response.first_choice_to_json(),
-            response_status,
-        );
-        response.send(resp);
+        Ok(http::Response::builder()
+            .status(response_status)
+            .body(component_response.first_choice_to_json())?)
+
     }
 }
 
@@ -139,81 +103,93 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn from_req(req: &IncomingRequest) -> anyhow::Result<Self> {
-        let map = helpers::parse_headers(&IncomingRequest::headers(req));
-        Self::new(&map)
-    }
-
-    pub fn new(headers: &HashMap<String, Vec<String>>) -> anyhow::Result<Self> {
-        let settings = headers
+    pub fn new(headers: &http::header::HeaderMap) -> anyhow::Result<Self> {
+        let value = headers
             .get("x-edgee-component-settings")
-            .ok_or_else(|| anyhow::anyhow!("Missing 'x-edgee-component-settings' header"))?;
-
-        if settings.len() != 1 {
-            return Err(anyhow::anyhow!(
-                "Expected exactly one 'x-edgee-component-settings' header, found {}",
-                settings.len()
-            ));
-        }
-        let setting = settings[0].clone();
-        let setting: HashMap<String, String> = serde_json::from_str(&setting)?;
-
-        let api_key = setting
-            .get("api_key")
-            .map(String::to_string)
-            .unwrap_or_default();
-
-        let model = setting
-            .get("model")
-            .map(String::to_string)
-            .unwrap_or_default();
-
-        let max_completion_tokens: Option<u32> = setting
-            .get("max_completion_tokens")
-            .and_then(|v| v.parse().ok());
-
-        let default_role = setting
-            .get("default_role")
-            .map(String::to_string)
-            .unwrap_or("user".to_string());
-
-        let default_system_prompt: Option<String> = setting.get("default_system_prompt").cloned();
-
-        let api_hostname: Option<String> = setting
-            .get("api_hostname")
-            .cloned()
-            .filter(|s| !s.is_empty());
+            .ok_or_else(|| anyhow::anyhow!("Missing 'x-edgee-component-settings' header"))
+            .and_then(|value| value.to_str().map_err(Into::into))?;
+        let data: HashMap<String, String> = serde_json::from_str(value)?;
 
         Ok(Self {
-            api_key,
-            model,
-            max_completion_tokens,
-            default_role,
-            default_system_prompt,
-            api_hostname,
+            api_key: data
+                .get("api_key")
+                .ok_or_else(|| anyhow::anyhow!("Missing api_key setting"))?
+                .to_string(),
+            model: data
+                .get("model")
+                .ok_or_else(|| anyhow::anyhow!("Missing model setting"))?
+                .to_string(),
+            max_completion_tokens: data
+                .get("max_completion_tokens")
+                .and_then(|v| v.parse().ok()),
+            default_role: data
+                .get("default_role")
+                .map(String::to_string)
+                .unwrap_or("user".to_string()),
+            default_system_prompt: data
+                .get("default_system_prompt")
+                .cloned()
+                .filter(|s| !s.is_empty()),
+            api_hostname: data
+                .get("api_hostname")
+                .cloned()
+                .filter(|s| !s.is_empty()),
         })
+    }
+
+    pub fn from_req<B>(req: &http::Request<B>) -> anyhow::Result<Self> {
+        Self::new(req.headers())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lazy_static;
+    use serde_json::json;
+    use std::sync::Mutex;
+    use http::{HeaderValue, Request};
+
+
+    // Patch SlackMessagePayload::send for this test
+    lazy_static::lazy_static! {
+        static ref SEND_CALLED: Mutex<bool> = Mutex::new(false);
+    }
+
+    // Mock SlackMessagePayload::send to avoid real HTTP call
+    pub struct MockResponse;
+    impl MockResponse {
+        pub fn status_code(&self) -> u16 {
+            200
+        }
+        pub fn body(&self) -> anyhow::Result<Vec<u8>> {
+            Ok(r#"{"choices": [{"message": {"role": "system", "content": "ok"}}]}"#.into())
+        }
+    }
+
+    impl OpenAIPayload {
+        pub fn send(&self, _hostname: Option<String>, _apikey: String) -> anyhow::Result<MockResponse> {
+            *SEND_CALLED.lock().unwrap() = true;
+            Ok(MockResponse)
+        }
+    }
 
     #[test]
     fn test_settings_new() {
-        let mut headers = HashMap::new();
+        let mut headers = http::header::HeaderMap::new();
         headers.insert(
-            "x-edgee-component-settings".to_string(),
-            vec![r#"{"api_key": "test_value"}"#.to_string()],
+            "x-edgee-component-settings",
+            HeaderValue::from_static(r#"{"api_key": "sk-XYZ", "model": "gpt-3.5-turbo"}"#),
         );
 
         let settings = Settings::new(&headers).unwrap();
-        assert_eq!(settings.api_key, "test_value");
+        assert_eq!(settings.api_key, "sk-XYZ");
+        assert_eq!(settings.model, "gpt-3.5-turbo");
     }
 
     #[test]
     fn test_settings_new_missing_header() {
-        let headers = HashMap::new();
+        let headers = http::header::HeaderMap::new();
         let result = Settings::new(&headers);
         assert!(result.is_err());
         assert_eq!(
@@ -223,31 +199,60 @@ mod tests {
     }
 
     #[test]
-    fn test_settings_new_multiple_headers() {
-        let mut headers = HashMap::new();
+    fn test_settings_new_invalid_json() {
+        let mut headers = http::header::HeaderMap::new();
         headers.insert(
-            "x-edgee-component-settings".to_string(),
-            vec![
-                r#"{"api_key": "test_value"}"#.to_string(),
-                r#"{"api_key": "another_value"}"#.to_string(),
-            ],
+            "x-edgee-component-settings",
+            HeaderValue::from_static(r#"not a json"#),
         );
         let result = Settings::new(&headers);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Expected exactly one 'x-edgee-component-settings' header"));
+    }
+
+
+    #[test]
+    fn test_handle_json_request_success() {
+        // Prepare request with headers and body
+        let body = json!({ "messages": [{
+                "role": "user",
+                "content": "Hello! Please say \"ok\" if this API call is working."
+            }]});
+        let req = Request::builder()
+            .header(
+                "x-edgee-component-settings",
+                r#"{"api_key": "sk-XYZ", "model": "gpt-3.5-turbo"}"#,
+            )
+            .body(body)
+            .unwrap();
+
+        // Call the handler
+        let result = Component::handle_json_request(req);
+
+        // Assert
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.status(), 200);
+        assert_eq!(resp.body().to_string(), r#"{"content":"ok","role":"system"}"#);
+        assert!(*SEND_CALLED.lock().unwrap());
     }
 
     #[test]
-    fn test_settings_new_invalid_json() {
-        let mut headers = HashMap::new();
-        headers.insert(
-            "x-edgee-component-settings".to_string(),
-            vec!["not a json".to_string()],
-        );
-        let result = Settings::new(&headers);
+    fn test_handle_json_request_missing_messages() {
+        let body = json!({}); // empty
+        let req = Request::builder()
+            .header(
+                "x-edgee-component-settings",
+                r#"{"api_key": "sk-XYZ", "model": "gpt-3.5-turbo"}"#,
+            )
+            .body(body)
+            .unwrap();
+
+        let result = Component::handle_json_request(req);
         assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Missing 'messages' field in request body"
+        );
     }
+    
 }

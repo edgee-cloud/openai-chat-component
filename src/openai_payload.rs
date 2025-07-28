@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 use waki::Response;
 
 const DEFAULT_HOST: &str = "api.openai.com";
@@ -7,6 +8,12 @@ const ENDPOINT: &str = "/v1/chat/completions";
 pub(crate) struct Message {
     pub(crate) role: String,
     pub(crate) content: String,
+}
+
+impl Message {
+    pub(crate) fn default_error_message() -> Self {
+        Message { role: "system".into(), content: "An error occurred".into() }
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -42,6 +49,7 @@ impl OpenAIPayload {
         endpoint
     }
 
+    #[cfg(not(test))]
     pub(crate) fn send(
         &self,
         hostname: Option<String>,
@@ -79,12 +87,13 @@ impl OpenAIResponse {
         Ok(openai_response)
     }
 
-    pub(crate) fn first_choice_to_json(&self) -> String {
+    pub(crate) fn first_choice_to_json(&self) -> serde_json::Value {
         // convert the first choice's message content to a string
         if let Some(choice) = self.choices.first() {
-            serde_json::to_string(&choice.message).unwrap_or_else(|_| "".to_string())
+            serde_json::json!(&choice.message)
         } else {
-            "No response from OpenAI".to_string() // fallback message (this should not happen, but just in case)
+            // fallback message (this should not happen, but just in case)
+            serde_json::json!(Message::default_error_message())
         }
     }
 }
@@ -175,15 +184,15 @@ mod tests {
         };
         let result = response.first_choice_to_json();
         // Should be a JSON string containing the message
-        assert!(result.contains("\"role\":\"assistant\""));
-        assert!(result.contains("\"content\":\"Hello from OpenAI!\""));
+        assert_eq!(result.get("role").unwrap().as_str(), Some("assistant"));
+        assert_eq!(result.get("content").unwrap().as_str(), Some("Hello from OpenAI!"));
     }
 
     #[test]
     fn test_openai_response_to_response_no_choices() {
         let response = OpenAIResponse { choices: vec![] };
         let result = response.first_choice_to_json();
-        assert_eq!(result, "No response from OpenAI");
+        assert_eq!(serde_json::to_string(&result).unwrap(), r#"{"content":"An error occurred","role":"system"}"#);
     }
 
     #[test]
