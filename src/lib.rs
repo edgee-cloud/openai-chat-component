@@ -3,7 +3,7 @@ mod openai_payload;
 use std::collections::HashMap;
 
 use bindings::wasi::http::types::{IncomingRequest, ResponseOutparam};
-use openai_payload::{OpenAIPayload, OpenAIResponse, Message};
+use openai_payload::{Message, OpenAIPayload, OpenAIResponse};
 
 mod bindings {
     wit_bindgen::generate!({
@@ -74,11 +74,12 @@ impl Component {
         let openai_payload =
             OpenAIPayload::new(settings.model, messages, settings.max_completion_tokens);
 
-        let openai_response = openai_payload.send(settings.api_hostname, settings.api_key).expect("Failed to send OpenAI request");
+        let openai_response = openai_payload
+            .send(settings.api_hostname, settings.api_key)
+            .expect("Failed to send OpenAI request");
 
         let response_status = openai_response.status_code();
-        let response_body =
-            String::from_utf8_lossy(&openai_response.body()?).to_string();
+        let response_body = String::from_utf8_lossy(&openai_response.body()?).to_string();
 
         let component_response = match OpenAIResponse::from_json_string(response_body) {
             Ok(response) => response,
@@ -88,7 +89,6 @@ impl Component {
         Ok(http::Response::builder()
             .status(response_status)
             .body(component_response.first_choice_to_json())?)
-
     }
 }
 
@@ -130,10 +130,7 @@ impl Settings {
                 .get("default_system_prompt")
                 .cloned()
                 .filter(|s| !s.is_empty()),
-            api_hostname: data
-                .get("api_hostname")
-                .cloned()
-                .filter(|s| !s.is_empty()),
+            api_hostname: data.get("api_hostname").cloned().filter(|s| !s.is_empty()),
         })
     }
 
@@ -145,11 +142,10 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use http::{HeaderValue, Request};
     use lazy_static;
     use serde_json::json;
     use std::sync::Mutex;
-    use http::{HeaderValue, Request};
-
 
     // Patch SlackMessagePayload::send for this test
     lazy_static::lazy_static! {
@@ -168,7 +164,11 @@ mod tests {
     }
 
     impl OpenAIPayload {
-        pub fn send(&self, _hostname: Option<String>, _apikey: String) -> anyhow::Result<MockResponse> {
+        pub fn send(
+            &self,
+            _hostname: Option<String>,
+            _apikey: String,
+        ) -> anyhow::Result<MockResponse> {
             *SEND_CALLED.lock().unwrap() = true;
             Ok(MockResponse)
         }
@@ -209,14 +209,13 @@ mod tests {
         assert!(result.is_err());
     }
 
-
     #[test]
     fn test_handle_json_request_success() {
         // Prepare request with headers and body
         let body = json!({ "messages": [{
-                "role": "user",
-                "content": "Hello! Please say \"ok\" if this API call is working."
-            }]});
+            "role": "user",
+            "content": "Hello! Please say \"ok\" if this API call is working."
+        }]});
         let req = Request::builder()
             .header(
                 "x-edgee-component-settings",
@@ -232,7 +231,10 @@ mod tests {
         assert!(result.is_ok());
         let resp = result.unwrap();
         assert_eq!(resp.status(), 200);
-        assert_eq!(resp.body().to_string(), r#"{"content":"ok","role":"system"}"#);
+        assert_eq!(
+            resp.body().to_string(),
+            r#"{"content":"ok","role":"system"}"#
+        );
         assert!(*SEND_CALLED.lock().unwrap());
     }
 
@@ -254,5 +256,4 @@ mod tests {
             "Missing 'messages' field in request body"
         );
     }
-    
 }

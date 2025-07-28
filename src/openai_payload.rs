@@ -12,7 +12,10 @@ pub(crate) struct Message {
 
 impl Message {
     pub(crate) fn default_error_message() -> Self {
-        Message { role: "system".into(), content: "An error occurred".into() }
+        Message {
+            role: "system".into(),
+            content: "An error occurred".into(),
+        }
     }
 }
 
@@ -185,14 +188,20 @@ mod tests {
         let result = response.first_choice_to_json();
         // Should be a JSON string containing the message
         assert_eq!(result.get("role").unwrap().as_str(), Some("assistant"));
-        assert_eq!(result.get("content").unwrap().as_str(), Some("Hello from OpenAI!"));
+        assert_eq!(
+            result.get("content").unwrap().as_str(),
+            Some("Hello from OpenAI!")
+        );
     }
 
     #[test]
     fn test_openai_response_to_response_no_choices() {
         let response = OpenAIResponse { choices: vec![] };
         let result = response.first_choice_to_json();
-        assert_eq!(serde_json::to_string(&result).unwrap(), r#"{"content":"An error occurred","role":"system"}"#);
+        assert_eq!(
+            serde_json::to_string(&result).unwrap(),
+            r#"{"content":"An error occurred","role":"system"}"#
+        );
     }
 
     #[test]
