@@ -1,5 +1,7 @@
+mod helpers;
 mod openai_payload;
 
+use helpers::body::Json;
 use std::collections::HashMap;
 
 use bindings::wasi::http::types::{IncomingRequest, ResponseOutparam};
@@ -14,24 +16,23 @@ mod bindings {
         default_bindings_module: "$crate::bindings",
     });
 }
-mod helpers;
 
 struct Component;
 bindings::export!(Component);
 
 impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
     fn handle(req: IncomingRequest, resp: ResponseOutparam) {
-        helpers::run_json(req, resp, Self::handle_json_request);
+        helpers::run(req, resp, Self::handle_json_request);
     }
 }
 
 impl Component {
     fn handle_json_request(
-        req: http::Request<serde_json::Value>,
-    ) -> Result<http::Response<serde_json::Value>, anyhow::Error> {
+        req: http::Request<Json<serde_json::Value>>,
+    ) -> Result<http::Response<Json<serde_json::Value>>, anyhow::Error> {
         let settings = Settings::from_req(&req)?;
 
-        let request_body = req.body();
+        let Json(request_body) = req.body();
 
         // extract messages from request body
         let mut messages: Vec<Message> = match request_body.get("messages") {
@@ -88,7 +89,7 @@ impl Component {
 
         Ok(http::Response::builder()
             .status(response_status)
-            .body(component_response.first_choice_to_json())?)
+            .body(Json(component_response.first_choice_to_json()))?)
     }
 }
 
@@ -147,12 +148,11 @@ mod tests {
     use serde_json::json;
     use std::sync::Mutex;
 
-    // Patch SlackMessagePayload::send for this test
     lazy_static::lazy_static! {
         static ref SEND_CALLED: Mutex<bool> = Mutex::new(false);
     }
 
-    // Mock SlackMessagePayload::send to avoid real HTTP call
+    // Mock send method to avoid real HTTP call
     pub struct MockResponse;
     impl MockResponse {
         pub fn status_code(&self) -> u16 {
@@ -221,7 +221,7 @@ mod tests {
                 "x-edgee-component-settings",
                 r#"{"api_key": "sk-XYZ", "model": "gpt-3.5-turbo"}"#,
             )
-            .body(body)
+            .body(Json(body))
             .unwrap();
 
         // Call the handler
@@ -231,10 +231,8 @@ mod tests {
         assert!(result.is_ok());
         let resp = result.unwrap();
         assert_eq!(resp.status(), 200);
-        assert_eq!(
-            resp.body().to_string(),
-            r#"{"content":"ok","role":"system"}"#
-        );
+        let Json(data) = resp.body();
+        assert_eq!(data.to_string(), r#"{"content":"ok","role":"system"}"#);
         assert!(*SEND_CALLED.lock().unwrap());
     }
 
@@ -246,7 +244,7 @@ mod tests {
                 "x-edgee-component-settings",
                 r#"{"api_key": "sk-XYZ", "model": "gpt-3.5-turbo"}"#,
             )
-            .body(body)
+            .body(Json(body))
             .unwrap();
 
         let result = Component::handle_json_request(req);
