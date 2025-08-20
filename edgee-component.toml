@@ -6,7 +6,42 @@ version = "1.0.0"
 
 category = "edge-function"
 subcategory = "wasm-function"
-description = "OpenAI Chat component for edge functions, allowing you to interact with OpenAI's API."
+description = """
+# OpenAI Chat Component
+
+[https://www.edgee.cloud/edgee/openai-chat](https://www.edgee.cloud/edgee/openai-chat)
+
+## Overview
+
+The **OpenAI Chat** component by Edgee enables seamless integration of OpenAI-compatible APIs into your Edgee projects.
+This component allows you to interact with OpenAI's Chat API directly at the edge, providing low-latency responses and efficient handling of chat interactions.
+
+---
+
+## Key Features & Benefits
+
+### Features
+
+- **Direct API Integration**: Interact with OpenAI-compatible APIs directly.
+- **Edge Deployment**: Reduce latency through edge execution.
+- **Easy Integration**: Simple to set up within Edgee projects.
+- **Chat Support**: Full support for various conversational use cases.
+
+### Benefits
+
+- **Improved UX**: Enhanced user experience with quick response times.
+- **Scalability**: Scalable architecture suitable for growing demands.
+- **Quick Setup**: Easy setup and configuration within existing Edgee workflows.
+
+---
+
+## Use Cases
+
+- **AI-Powered Chatbots**: Implement responsive and intelligent virtual assistants.
+- **Customer Support**: Enhance support systems with real-time AI responses.
+- **Interactive Interfaces**: Build engaging, conversational user interactions.
+- **Conversational AI**: Embed chat capabilities into new or existing applications.
+"""
 documentation = "https://github.com/edgee-cloud/openai-chat-component"
 repository = "https://github.com/edgee-cloud/openai-chat-component"
 language = "Rust"
