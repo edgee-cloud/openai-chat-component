@@ -7,10 +7,6 @@ version = "1.0.0"
 category = "edge-function"
 subcategory = "wasm-function"
 description = """
-# OpenAI Chat Component
-
-[https://www.edgee.cloud/edgee/openai-chat](https://www.edgee.cloud/edgee/openai-chat)
-
 ## Overview
 
 The **OpenAI Chat** component by Edgee enables seamless integration of OpenAI-compatible APIs into your Edgee projects.
